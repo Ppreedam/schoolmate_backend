@@ -1,0 +1,47 @@
+{
+    "name": "schoolmate_backend",
+    "code":"schoolmate_1234",
+    "theme_color": "blue",
+    "created_at":"",
+    "updated_at": "",
+    "domain": "schoolmate.com",
+    "contact_email": "a@gmail.com",
+    "contact_phone": "+1234567890",
+    "address": "123 School St, Education City",
+    "logo_url": "https://example.com/logo.png",
+    "is_active": true,
+    "features": {
+        "user_authentication": true,
+        "school_management": true,
+        "student_enrollment": true,
+        "teacher_management": true,
+        "class_scheduling": true,
+        "attendance_tracking": true,
+        "grade_management": true,
+        "parent_portal": true,
+        "communication_tools": true,
+        "reporting_analytics": true,
+        "mobile_app": true, 
+        "fee collection": true,
+        "library_management": true,
+        "transportation_management": true,
+        "event_management": true,
+        "circulars_notifications": true,
+        "exam_management": true,
+        "customizable_dashboard": true,
+        "multi_language_support": true
+    },
+    "school_website_details_dict": {
+        "website_name": "Schoolmate",
+        "website_url": "https://schoolmate.com",
+        "website_description": "A comprehensive school management system.",
+        "website_keywords": ["school", "management", "education", "students", "teachers"],
+        "website_logo": "https://example.com/schoolmate_logo.png",
+        "social_media_links": {
+            "facebook": "https://facebook.com/schoolmate",
+            "twitter": "https://twitter.com/schoolmate",
+            "instagram": "https://instagram.com/schoolmate"
+        }
+    }
+
+}

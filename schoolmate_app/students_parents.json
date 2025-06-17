@@ -1,0 +1,31 @@
+{
+    "school_id": 1,
+    "student_name": "John Doe",
+    "parent_name": "Jane Doe",
+    "relationship": "Mother",
+    "admission_number": "ADM123456",
+    "class": "10th Grade",
+    "section": "A",
+    "date_of_birth": "2005-05-15",
+    "roll_number": "R12345",
+    "gender":"male",
+    "mobile_number": "1234567890",
+    "email": "",
+    "address":{
+        "city": "Springfield",
+        "state": "IL",
+        "country": "USA",
+        "postal_code": "62701",
+        "admission_date": "2020-08-01"
+    },
+    "Regular fees": {
+        "tuition_fee": 5000,
+        "admissions_fee_paid": true,
+        "fee_category": "Regular",
+        "montly_fee": 500,
+        "due_date": "2023-10-01",
+        "payment_status": true,
+        "fee_mood": "Online",
+        "payment_date": "2023-09-30"
+    }
+}
