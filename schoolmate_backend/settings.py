@@ -167,7 +167,9 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://20.163.239.30:9033",
-    "http://localhost:8081"
+    "http://localhost:8080"
 ]
 
 AUTH_USER_MODEL = 'schoolmate_app.User'
+
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
