@@ -69,7 +69,7 @@ def user_registrations_views(request):
                 return JsonResponse({"error": "Missing required field: school_id"}, status=400)
 
             # Validate school_id exists
-            if not School.objects.filter(school_code=school_id).exists():
+            if not School.objects.filter(school_id=school_id).exists():
                 return JsonResponse({"error": "Invalid school_id provided."}, status=400)
 
             data['school_id'] = school_id
