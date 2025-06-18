@@ -5,7 +5,7 @@ from django.http import JsonResponse
 from django.contrib.auth import authenticate
 from rest_framework.response import Response
 from django.http import JsonResponse as Request
-from .models import FeeStructure, School, Student
+from .models import FeeStructure, School, Student, User
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
@@ -69,7 +69,7 @@ def user_registrations_views(request):
                 return JsonResponse({"error": "Missing required field: school_id"}, status=400)
 
             # Validate school_id exists
-            if not School.objects.filter(school_id=school_id).exists():
+            if not User.objects.filter(school_id=school_id).exists():
                 return JsonResponse({"error": "Invalid school_id provided."}, status=400)
 
             data['school_id'] = school_id
