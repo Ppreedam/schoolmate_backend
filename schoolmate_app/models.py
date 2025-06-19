@@ -144,27 +144,47 @@ class FeeStructure(models.Model):
     def __str__(self):
         return f"{self.name} - {self.student_class} {self.section}"
 
-# models.py
+
 class FeePayment(models.Model):
-    school_id = models.CharField(max_length=50)
-    student = models.ForeignKey(Student, on_delete=models.CASCADE)
-    month = models.CharField(max_length=15)  # e.g., 'June'
+    school_id = models.CharField(max_length=50)  # Consider ForeignKey if you have a School model
+    student = models.ForeignKey('Student', on_delete=models.CASCADE, related_name='fee_payments')
+    month = models.CharField(max_length=15)  # e.g., "June"
     year = models.IntegerField(default=timezone.now().year)
     amount_due = models.DecimalField(max_digits=10, decimal_places=2)
     amount_paid = models.DecimalField(max_digits=10, decimal_places=2, default=0.0)
     is_paid = models.BooleanField(default=False)
+    due_date = models.DateField(null=True, blank=True)
     payment_date = models.DateField(null=True, blank=True)
     transaction_id = models.CharField(max_length=100, null=True, blank=True)
-    mode = models.CharField(
-        max_length=50,
+    fee_type = models.CharField(max_length=50,
+        choices=[
+            ('regular', 'Regular'),
+            ('books', 'Books'), 
+            ('uniform', 'Uniform'),
+            ('bag', 'Bag'),
+            ('transport', 'Transport'),
+            ('other', 'Other')
+        ],
+        default='regular'
+    )
+    mode = models.CharField(max_length=50,
         choices=[
             ('cash', 'Cash'),
             ('upi', 'UPI'),
             ('netbanking', 'Net Banking'),
             ('card', 'Card'),
+            ('cheque', 'Cheque'),
+            ('wallet', 'Wallet')
         ],
         null=True, blank=True
     )
+    remarks = models.TextField(null=True, blank=True)  # optional: for any custom note like "paid partially"
+    invoice_id = models.CharField(max_length=100, null=True, blank=True, unique=True)
+
+    class Meta:
+        ordering = ['-year', 'month']
+        unique_together = ('student', 'month', 'year', 'fee_type')
 
     def __str__(self):
-        return f"{self.student.name} - {self.month} {self.year}"
+        return f"{self.student.student_name} - {self.fee_type} - {self.month} {self.year}"
+

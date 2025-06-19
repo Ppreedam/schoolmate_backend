@@ -370,97 +370,88 @@ def delete_fee_structure(request, fee_id):
         return Response({'error': 'Fee Structure not found'}, status=status.HTTP_404_NOT_FOUND)
 
 
+# views.py
+# from rest_framework.decorators import api_view
+# from rest_framework.response import Response
+# from rest_framework import status
+from .models import FeePayment
+from .serializers import FeePaymentSerializer
+from django.db.models import Sum
+
+# Create FeePayment
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def create_fee_payment(request):
-    data = request.data
-    payment = FeePayment.objects.create(data=data)
-        # school_id=data['school_id'],
-        # student_id=data['student_id'],
-        # month=data['month'],
-        # year=data['year'],
-        # amount_due=data['amount_due'],
-        # amount_paid=data['amount_paid'],
-        # is_paid=data['is_paid'],
-        # payment_date=data.get('payment_date'),
-        # transaction_id=data.get('transaction_id'),
-        # mode=data.get('mode')
-    
-    return JsonResponse({"message": "Payment record created", "id": payment.id}, status=201)
-    
+    serializer = FeePaymentSerializer(data=request.data)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+# Read all payments (or filter by student or month/year)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def get_fee_payment(request, payment_id):
-    payment = get_object_or_404(FeePayment, id=payment_id)
-    return JsonResponse({
-        "school_id": payment.school_id,
-        "student_id": payment.student.id,
-        "month": payment.month,
-        "year": payment.year,
-        "amount_due": float(payment.amount_due),
-        "amount_paid": float(payment.amount_paid),
-        "is_paid": payment.is_paid,
-        "payment_date": payment.payment_date,
-        "transaction_id": payment.transaction_id,
-        "mode": payment.mode,
-    })
+def get_fee_payments(request):
+    student_id = request.GET.get('student')
+    month = request.GET.get('month')
+    year = request.GET.get('year')
 
+    filters = {}
+    if student_id:
+        filters['student_id'] = student_id
+    if month:
+        filters['month'] = month
+    if year:
+        filters['year'] = year
 
+    payments = FeePayment.objects.filter(**filters)
+    serializer = FeePaymentSerializer(payments, many=True)
+    return Response(serializer.data)
+
+# Update FeePayment
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
-def update_fee_payment(request, payment_id):
-    payment = get_object_or_404(FeePayment, id=payment_id)
-    data = json.loads(request.body)
+def update_fee_payment(request, pk):
+    try:
+        fee_payment = FeePayment.objects.get(pk=pk)
+    except FeePayment.DoesNotExist:
+        return Response({'error': 'FeePayment not found'}, status=404)
 
-    payment.amount_due = data.get('amount_due', payment.amount_due)
-    payment.amount_paid = data.get('amount_paid', payment.amount_paid)
-    payment.is_paid = data.get('is_paid', payment.is_paid)
-    payment.payment_date = data.get('payment_date', payment.payment_date)
-    payment.transaction_id = data.get('transaction_id', payment.transaction_id)
-    payment.mode = data.get('mode', payment.mode)
-    payment.save()
+    serializer = FeePaymentSerializer(fee_payment, data=request.data)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data)
+    return Response(serializer.errors, status=400)
 
-    return JsonResponse({"message": "Payment updated"})
-
+# Delete FeePayment
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
-def delete_fee_payment(request, payment_id):
-    payment = get_object_or_404(FeePayment, id=payment_id)
-    payment.delete()
-    return JsonResponse({"message": "Payment deleted"})
+def delete_fee_payment(request, pk):
+    try:
+        fee_payment = FeePayment.objects.get(pk=pk)
+        fee_payment.delete()
+        return Response({'message': 'Deleted successfully'}, status=204)
+    except FeePayment.DoesNotExist:
+        return Response({'error': 'FeePayment not found'}, status=404)
 
-
+# Get fee history for a student
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def get_student_payment_history_by_school(request, school_id, student_id):
-    payments = FeePayment.objects.filter(school_id=school_id, student_id=student_id).order_by('year', 'month')
-    data = [{
-        "month": p.month,
-        "year": p.year,
-        "amount_due": float(p.amount_due),
-        "amount_paid": float(p.amount_paid),
-        "is_paid": p.is_paid,
-        "payment_date": p.payment_date,
-        "mode": p.mode,
-        "transaction_id": p.transaction_id,
-    } for p in payments]
-    return JsonResponse(data, safe=False)
+def get_fee_history_by_student(request, student_id):
+    payments = FeePayment.objects.filter(student_id=student_id).order_by('-year', '-month')
+    serializer = FeePaymentSerializer(payments, many=True)
+    return Response(serializer.data)
 
+# Get due summary (how much student has paid vs due)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def get_all_payments_by_school(request, school_id):
-    payments = FeePayment.objects.filter(school_id=school_id).order_by('student', 'year', 'month')
-    data = [{
-        "student_id": p.student.id,
-        "student_name": p.student.name,
-        "month": p.month,
-        "year": p.year,
-        "amount_due": float(p.amount_due),
-        "amount_paid": float(p.amount_paid),
-        "is_paid": p.is_paid,
-        "payment_date": p.payment_date,
-        "mode": p.mode,
-        "transaction_id": p.transaction_id,
-    } for p in payments]
-    return JsonResponse(data, safe=False)
-
+def get_fee_summary_by_student(request, student_id):
+    payments = FeePayment.objects.filter(student_id=student_id)
+    total_due = payments.aggregate(Sum('amount_due'))['amount_due__sum'] or 0
+    total_paid = payments.aggregate(Sum('amount_paid'))['amount_paid__sum'] or 0
+    return Response({
+        "student_id": student_id,
+        "total_due": total_due,
+        "total_paid": total_paid,
+        "remaining": total_due - total_paid
+    })

@@ -34,13 +34,19 @@ urlpatterns = [
 
     
     # Fee Payment History
-    path('fees/payment/create/', views.create_fee_payment, name='create_fee_payment'),
-    path('fees/payment/<int:payment_id>/', views.get_fee_payment, name='get_fee_payment'),
-    path('fees/payment/<int:payment_id>/update/', views.update_fee_payment, name='update_fee_payment'),
-    path('fees/payment/<int:payment_id>/delete/', views.delete_fee_payment, name='delete_fee_payment'),
+    # path('fees/payment/create/', views.create_fee_payment, name='create_fee_payment'),
+    # path('fees/payment/<int:payment_id>/', views.get_fee_payment, name='get_fee_payment'),
+    # path('fees/payment/<int:payment_id>/update/', views.update_fee_payment, name='update_fee_payment'),
+    # path('fees/payment/<int:payment_id>/delete/', views.delete_fee_payment, name='delete_fee_payment'),
 
-    # Get by school/student
-    path('fees/history/<str:school_id>/<int:student_id>/', views.get_student_payment_history_by_school, name='student_fee_history_by_school'),
-    path('fees/history/<str:school_id>/', views.get_all_payments_by_school, name='all_fee_history_by_school'),
+    # # Get by school/student
+    # path('fees/history/<str:school_id>/<int:student_id>/', views.get_student_payment_history_by_school, name='student_fee_history_by_school'),
+    # path('fees/history/<str:school_id>/', views.get_all_payments_by_school, name='all_fee_history_by_school'),
+    path('create/fee/history/', views.create_fee_payment), #Add fee record
+    path('fee/all/', views.get_fee_payments), #Filter fee data
+    path('fee/update/<int:pk>/', views.update_fee_payment), #Update fee record
+    path('fee/delete/<int:pk>/', views.delete_fee_payment), #Delete fee record
+    path('fee/history/<int:student_id>/', views.get_fee_history_by_student),    # Get fee history by student ID
+    path('fee/summary/<int:student_id>/', views.get_fee_summary_by_student)     # Get fee summary by student ID
 
 ]
