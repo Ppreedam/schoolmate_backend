@@ -90,7 +90,7 @@ class School(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     domain = models.CharField(max_length=255)
-    contact_email = models.EmailField()
+    contact_email = models.EmailField(unique=True)
     contact_phone = models.CharField(max_length=20)
     address = models.TextField()
     logo_url = models.URLField()
@@ -106,7 +106,6 @@ class School(models.Model):
         return self.school_code
 
 class Student(models.Model):
-    # school = models.ForeignKey('School', on_delete=models.CASCADE, related_name='students')
     student_name = models.CharField(max_length=255)
     parent_name = models.CharField(max_length=255)
     relationship = models.CharField(max_length=50)
@@ -137,10 +136,35 @@ class FeeStructure(models.Model):
     frequency = models.CharField(max_length=50)  # e.g., Regular, Quarterly, One-Time
     student_class = models.CharField(max_length=100)
     section = models.CharField(max_length=10)
-    school = models.ForeignKey('School', on_delete=models.CASCADE, related_name='fee_structures')
+    # school = models.ForeignKey('School', on_delete=models.CASCADE, related_name='fee_structures')
+    school_id = models.CharField(max_length=50)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f"{self.name} - {self.student_class} {self.section}"
 
+# models.py
+class FeePayment(models.Model):
+    school_id = models.CharField(max_length=50)
+    student = models.ForeignKey(Student, on_delete=models.CASCADE)
+    month = models.CharField(max_length=15)  # e.g., 'June'
+    year = models.IntegerField(default=timezone.now().year)
+    amount_due = models.DecimalField(max_digits=10, decimal_places=2)
+    amount_paid = models.DecimalField(max_digits=10, decimal_places=2, default=0.0)
+    is_paid = models.BooleanField(default=False)
+    payment_date = models.DateField(null=True, blank=True)
+    transaction_id = models.CharField(max_length=100, null=True, blank=True)
+    mode = models.CharField(
+        max_length=50,
+        choices=[
+            ('cash', 'Cash'),
+            ('upi', 'UPI'),
+            ('netbanking', 'Net Banking'),
+            ('card', 'Card'),
+        ],
+        null=True, blank=True
+    )
+
+    def __str__(self):
+        return f"{self.student.name} - {self.month} {self.year}"

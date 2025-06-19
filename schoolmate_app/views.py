@@ -1,3 +1,4 @@
+import json
 import shortuuid
 from rest_framework import status
 from django.utils import timezone
@@ -5,7 +6,8 @@ from django.http import JsonResponse
 from django.contrib.auth import authenticate
 from rest_framework.response import Response
 from django.http import JsonResponse as Request
-from .models import FeeStructure, School, Student, User
+from django.shortcuts import get_object_or_404
+from .models import FeeStructure, School, Student, User, FeePayment
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
@@ -32,18 +34,6 @@ def get_tokens_for_user(user):
         'access': str(refresh.access_token),
     }
 
-
-
-# from rest_framework.decorators import api_view
-# from rest_framework.response import Response
-# from rest_framework import status
-# from rest_framework.exceptions import ValidationError as DRFValidationError
-# from django.http import JsonResponse
-# from .models import School
-# from .serializers import UserRegistrationSerializer
-# from .utils import generate_unique_referral_code, get_tokens_for_user
-
-
 @api_view(['POST'])
 def user_registrations_views(request):
     """
@@ -63,7 +53,7 @@ def user_registrations_views(request):
         data['display_name'] = data['name']
 
         # School ID logic based on role
-        if data['role'] not in ['admin', "school-admin"]:
+        if data['role'] not in ['super-admin', "school-admin"]:
             school_id = data.get('school_id')
             if not school_id:
                 return JsonResponse({"error": "Missing required field: school_id"}, status=400)
@@ -148,6 +138,7 @@ def user_profile_view(request):
         return Response({'error': 'Profile Retrieval Failure'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def user_logout_view(request):
     """
     Function to log out a user by invalidating the refresh token.
@@ -171,18 +162,40 @@ def user_logout_view(request):
         return Response({'error': 'Invalid refresh token'}, status=status.HTTP_400_BAD_REQUEST)
     except Exception as error:
         return Response({"error": str(error)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_all_users(request):
+    """Function to retrieve all users in the system.
+
+    Args:
+        None    
+        
+    Return:
+        A list of all users with their details.
+    """
+    try:
+        role = request.GET.get('role', None)
+        # filter user base on role
+        if role:
+            users = User.objects.filter(role=role)
+        else:
+            users = User.objects.all()
+        serializer = UserProfileSerializer(users, many=True)
+        return Response({"all user":serializer.data}, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({'error': 'Failed to retrieve users'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 # Create
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def create_school_view(request):
-    role = request.user.role
-    school_id = request.user.school_id
+    # school_id = request.user.school_id
     # if role != 'admin':
     #     return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
     data1 = request.data
-    data1["school_id"] = school_id
+    # data1["school_id"] = school_id
     serializer = SchoolSerializer(data=data1)
     if serializer.is_valid():
         serializer.save()
@@ -238,20 +251,31 @@ def delete_school(request, pk):
 
 
 @api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def create_student(request):
-    serializer = StudentSerializer(data=request.data)
+    school_id = request.user.school_id
+    # if role != 'admin':
+    #     return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
+    data1 = request.data
+    data1["school_id"] = school_id
+    serializer = StudentSerializer(data=data1)
     if serializer.is_valid():
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def get_all_students(request):
-    students = Student.objects.all()
+    school_id = request.user.school_id
+    if not school_id:
+        return Response({'error': 'school_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+    students = Student.objects.filter(school_id=school_id)
     serializer = StudentSerializer(students, many=True)
     return Response(serializer.data)
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def get_student(request, student_id):
     try:
         student = Student.objects.get(id=student_id)
@@ -262,6 +286,7 @@ def get_student(request, student_id):
     return Response(serializer.data)
 
 @api_view(['PUT'])
+@permission_classes([IsAuthenticated])
 def update_student(request, student_id):
     try:
         student = Student.objects.get(id=student_id)
@@ -275,6 +300,7 @@ def update_student(request, student_id):
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
 def delete_student(request, student_id):
     try:
         student = Student.objects.get(id=student_id)
@@ -284,24 +310,33 @@ def delete_student(request, student_id):
         return Response({'error': 'Student not found'}, status=status.HTTP_404_NOT_FOUND)
 
 @api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def create_fee_structure(request):
-    serializer = FeeStructureSerializer(data=request.data)
+    school_id = request.user.school_id
+    # if role != 'admin':
+    #     return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
+    data1 = request.data
+    data1["school_id"] = school_id
+
+    serializer = FeeStructureSerializer(data=data1)
     if serializer.is_valid():
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def get_fee_structures_by_school(request):
-    school_id = request.GET.get('school_id')
+    school_id = request.user.school_id
     if not school_id:
         return Response({'error': 'school_id is required'}, status=status.HTTP_400_BAD_REQUEST)
 
-    fee_structures = FeeStructure.objects.filter(school__school_code=school_id)
+    fee_structures = FeeStructure.objects.filter(school_id=school_id)
     serializer = FeeStructureSerializer(fee_structures, many=True)
     return Response(serializer.data)
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def get_fee_structure_by_id(request, fee_id):
     try:
         fee = FeeStructure.objects.get(id=fee_id)
@@ -311,6 +346,7 @@ def get_fee_structure_by_id(request, fee_id):
         return Response({'error': 'Fee Structure not found'}, status=status.HTTP_404_NOT_FOUND)
 
 @api_view(['PUT'])
+@permission_classes([IsAuthenticated])
 def update_fee_structure(request, fee_id):
     try:
         fee = FeeStructure.objects.get(id=fee_id)
@@ -324,6 +360,7 @@ def update_fee_structure(request, fee_id):
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
 def delete_fee_structure(request, fee_id):
     try:
         fee = FeeStructure.objects.get(id=fee_id)
@@ -331,3 +368,99 @@ def delete_fee_structure(request, fee_id):
         return Response({'message': 'Fee Structure deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
     except FeeStructure.DoesNotExist:
         return Response({'error': 'Fee Structure not found'}, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_fee_payment(request):
+    data = request.data
+    payment = FeePayment.objects.create(data=data)
+        # school_id=data['school_id'],
+        # student_id=data['student_id'],
+        # month=data['month'],
+        # year=data['year'],
+        # amount_due=data['amount_due'],
+        # amount_paid=data['amount_paid'],
+        # is_paid=data['is_paid'],
+        # payment_date=data.get('payment_date'),
+        # transaction_id=data.get('transaction_id'),
+        # mode=data.get('mode')
+    
+    return JsonResponse({"message": "Payment record created", "id": payment.id}, status=201)
+    
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_fee_payment(request, payment_id):
+    payment = get_object_or_404(FeePayment, id=payment_id)
+    return JsonResponse({
+        "school_id": payment.school_id,
+        "student_id": payment.student.id,
+        "month": payment.month,
+        "year": payment.year,
+        "amount_due": float(payment.amount_due),
+        "amount_paid": float(payment.amount_paid),
+        "is_paid": payment.is_paid,
+        "payment_date": payment.payment_date,
+        "transaction_id": payment.transaction_id,
+        "mode": payment.mode,
+    })
+
+
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def update_fee_payment(request, payment_id):
+    payment = get_object_or_404(FeePayment, id=payment_id)
+    data = json.loads(request.body)
+
+    payment.amount_due = data.get('amount_due', payment.amount_due)
+    payment.amount_paid = data.get('amount_paid', payment.amount_paid)
+    payment.is_paid = data.get('is_paid', payment.is_paid)
+    payment.payment_date = data.get('payment_date', payment.payment_date)
+    payment.transaction_id = data.get('transaction_id', payment.transaction_id)
+    payment.mode = data.get('mode', payment.mode)
+    payment.save()
+
+    return JsonResponse({"message": "Payment updated"})
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_fee_payment(request, payment_id):
+    payment = get_object_or_404(FeePayment, id=payment_id)
+    payment.delete()
+    return JsonResponse({"message": "Payment deleted"})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_student_payment_history_by_school(request, school_id, student_id):
+    payments = FeePayment.objects.filter(school_id=school_id, student_id=student_id).order_by('year', 'month')
+    data = [{
+        "month": p.month,
+        "year": p.year,
+        "amount_due": float(p.amount_due),
+        "amount_paid": float(p.amount_paid),
+        "is_paid": p.is_paid,
+        "payment_date": p.payment_date,
+        "mode": p.mode,
+        "transaction_id": p.transaction_id,
+    } for p in payments]
+    return JsonResponse(data, safe=False)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_all_payments_by_school(request, school_id):
+    payments = FeePayment.objects.filter(school_id=school_id).order_by('student', 'year', 'month')
+    data = [{
+        "student_id": p.student.id,
+        "student_name": p.student.name,
+        "month": p.month,
+        "year": p.year,
+        "amount_due": float(p.amount_due),
+        "amount_paid": float(p.amount_paid),
+        "is_paid": p.is_paid,
+        "payment_date": p.payment_date,
+        "mode": p.mode,
+        "transaction_id": p.transaction_id,
+    } for p in payments]
+    return JsonResponse(data, safe=False)
+
