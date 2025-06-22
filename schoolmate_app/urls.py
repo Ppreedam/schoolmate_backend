@@ -11,6 +11,9 @@ urlpatterns = [
     path("profile/", views.user_profile_view, name="user_profile"),
     path("logout/", views.user_logout_view, name="user_logout"),
     path("get/all/users/", views.get_all_users, name="get_all_users"),
+    path('changepassword/', views.user_change_password_views, name='changepassword'),
+    path('send_otp_for_reset_password/', views.send_otp_views, name='send_otp'),
+    path('verify_otp/', views.verify_otp_views, name='verify_otp'),
     # create school
     path("create/school/", views.create_school_view, name="create_school"),
     path("schools/", views.list_schools, name="list_schools"), # list all schools

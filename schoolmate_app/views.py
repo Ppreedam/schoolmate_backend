@@ -7,12 +7,15 @@ from django.contrib.auth import authenticate
 from rest_framework.response import Response
 from django.http import JsonResponse as Request
 from django.shortcuts import get_object_or_404
-from .models import FeeStructure, School, Student, User, FeePayment
+from django.contrib.auth.hashers import check_password
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
+from component import send_email
 from rest_framework.decorators import api_view, permission_classes
+from .models import FeeStructure, School, Student, User, FeePayment, EmailOTP
 from rest_framework.exceptions import ValidationError as DRFValidationError
+import os, ast, json, uuid, random, string, razorpay, base64, requests, shortuuid, re, math
 from .serializers import UserRegistrationSerializer, UserLoginSerializer, UserProfileSerializer, SchoolSerializer, StudentSerializer, FeeStructureSerializer
 
 def generate_unique_referral_code(number):
@@ -176,8 +179,11 @@ def get_all_users(request):
     """
     try:
         role = request.GET.get('role', None)
+        school_id = request.GET.get('school_id', None)
         # filter user base on role
-        if role:
+        if school_id:
+            users = User.objects.filter(school_id=school_id)
+        elif role:
             users = User.objects.filter(role=role)
         else:
             users = User.objects.all()
@@ -185,6 +191,112 @@ def get_all_users(request):
         return Response({"all user":serializer.data}, status=status.HTTP_200_OK)
     except Exception as e:
         return Response({'error': 'Failed to retrieve users'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def user_change_password_views(request, format=None):
+    """
+    user can change their password by access_token
+
+    Returns:
+        message received password changed
+
+    Args:
+        successfull message
+"""
+    try:
+        password = request.data.get("password")
+        password2 = request.data.get("password2")
+        user_email = request.user.email
+        user = User.objects.get(email=user_email)
+        if check_password(password, user.password):
+            # return JsonResponse({"error": 'Please enter a password that is completely different from your last one'}, status=status.HTTP_400_BAD_REQUEST)
+            return JsonResponse({"error": 'Kindly enter a new password. It must differ from your previous one.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Set the new password and save the user
+        user.set_password(password)
+        user.save()
+        return JsonResponse({"msg": 'Password Successfully Updated.'}, status=status.HTTP_201_CREATED)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+def generate_otp():
+    return ''.join(random.choices(string.digits, k=6))
+
+
+@api_view(['POST'])
+def send_otp_views(request):
+    """
+    Sends a One-Time Password (OTP) to the user's email.
+
+    Args:
+        email: User's email address (required)
+
+    Returns:
+        JSON response indicating success or failure
+    """
+    try:
+        user_email = request.data.get("email")
+
+        if not user_email:
+            return Response({"error": "Email is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Generate new OTP
+        otp = generate_otp()
+        expiration_time = timezone.now() + timezone.timedelta(minutes=3)
+
+        # Create or update EmailOTP entry
+        otp_instance, created = EmailOTP.objects.update_or_create(
+            email=user_email,
+            defaults={
+                'otp': otp,
+                'expiration_time': expiration_time
+            }
+        )
+
+        # Send the OTP via email
+        send_email_response = send_email.send_otp_on_email({}, user_email, otp)
+
+        return Response({"message": send_email_response}, status=status.HTTP_200_OK)
+
+    except Exception as error:
+        return Response({"error": f"Failed to send OTP: {str(error)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    
+@api_view(['POST'])
+def verify_otp_views(request):
+    """
+        function help us to validate otp 
+
+        Args:
+            email:- user email
+            otp:- 
+
+        return:-
+            'OTP verified successfully' message and 200 status code
+
+    """
+    try:
+        user_email = request.data.get("email")
+        received_otp = request.data.get('otp', '')
+        # print(user_email, received_otp)
+
+        # Retrieve the latest OTP record for the user
+        otp_record = EmailOTP.objects.filter(
+            email=user_email).order_by('-expiration_time').first()
+
+        if otp_record and otp_record.otp == received_otp and otp_record.expiration_time > timezone.now():
+            return JsonResponse({"msg": 'OTP Successfully Verified'}, status=status.HTTP_200_OK)
+        else:
+            # Invalid OTP
+            return JsonResponse({"error": 'OTP Invalid or Expired'}, status=status.HTTP_401_UNAUTHORIZED)
+    except Exception as error:
+        # logger.error(
+        #     f"getting error during verify_otp_views && error is {error}")
+        return JsonResponse({"error": str(error)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 
 
 # Create
@@ -195,6 +307,7 @@ def create_school_view(request):
     # if role != 'admin':
     #     return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
     data1 = request.data
+    print("data1:", data1)
     # data1["school_id"] = school_id
     serializer = SchoolSerializer(data=data1)
     if serializer.is_valid():

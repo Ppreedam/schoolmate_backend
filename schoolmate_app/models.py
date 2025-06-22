@@ -188,3 +188,11 @@ class FeePayment(models.Model):
     def __str__(self):
         return f"{self.student.student_name} - {self.fee_type} - {self.month} {self.year}"
 
+class EmailOTP(models.Model):
+    email = models.EmailField(
+      verbose_name='Email',
+      max_length=255,
+      unique=True,
+  )
+    otp = models.CharField(max_length=6)
+    expiration_time = models.DateTimeField()
