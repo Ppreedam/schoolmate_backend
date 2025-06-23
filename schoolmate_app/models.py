@@ -180,9 +180,9 @@ class FeePayment(models.Model):
     remarks = models.TextField(null=True, blank=True)  # optional: for any custom note like "paid partially"
     invoice_id = models.CharField(max_length=100, null=True, blank=True, unique=True)
 
-    class Meta:
-        ordering = ['-year', 'month']
-        unique_together = ('student', 'month', 'year', 'fee_type')
+    # class Meta:
+    #     ordering = ['-year', 'month']
+    #     unique_together = ('student', 'month', 'year', 'fee_type')
 
     def __str__(self):
         return f"{self.student.student_name} - {self.fee_type} - {self.month} {self.year}"

@@ -530,7 +530,7 @@ from .serializers import FeePaymentSerializer
 def create_fee_payment(request):
     try:
         data = request.data
-        data["invoice_id"] = "135cjnnaiu8gqqb"
+        # data["invoice_id"] = "135cjnnaiu8gqqb"
         print("Incoming Fee Payment Data:", data)
 
         serializer = FeePaymentSerializer(data=data)
@@ -567,6 +567,7 @@ def get_fee_payments(request):
     student_id = request.GET.get('student')
     month = request.GET.get('month')
     year = request.GET.get('year')
+    school_id = request.user.school_id
 
     filters = {}
     if student_id:
@@ -575,6 +576,8 @@ def get_fee_payments(request):
         filters['month'] = month
     if year:
         filters['year'] = year
+    if school_id:
+        filters['school_id'] = school_id
 
     payments = FeePayment.objects.filter(**filters)
     serializer = FeePaymentSerializer(payments, many=True)
