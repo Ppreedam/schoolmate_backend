@@ -13,10 +13,12 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 from component import send_email
 from rest_framework.decorators import api_view, permission_classes
-from .models import FeeStructure, School, Student, User, FeePayment, EmailOTP
+from .models import FeeCategory, School, Student, User, FeePayment, EmailOTP
 from rest_framework.exceptions import ValidationError as DRFValidationError
+from rest_framework.exceptions import ValidationError
+from django.db import DatabaseError
 import os, ast, json, uuid, random, string, razorpay, base64, requests, shortuuid, re, math
-from .serializers import UserRegistrationSerializer, UserLoginSerializer, UserProfileSerializer, SchoolSerializer, StudentSerializer, FeeStructureSerializer
+from .serializers import UserRegistrationSerializer, UserLoginSerializer, UserProfileSerializer, SchoolSerializer, StudentSerializer, FeeCategorySerializer
 
 def generate_unique_referral_code(number):
     return shortuuid.uuid()[:number]  # Generate a short, human-readable code
@@ -431,7 +433,7 @@ def create_fee_structure(request):
     data1 = request.data
     data1["school_id"] = school_id
 
-    serializer = FeeStructureSerializer(data=data1)
+    serializer = FeeCategorySerializer(data=data1)
     if serializer.is_valid():
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -444,42 +446,65 @@ def get_fee_structures_by_school(request):
     if not school_id:
         return Response({'error': 'school_id is required'}, status=status.HTTP_400_BAD_REQUEST)
 
-    fee_structures = FeeStructure.objects.filter(school_id=school_id)
-    serializer = FeeStructureSerializer(fee_structures, many=True)
+    fee_structures = FeeCategory.objects.filter(school_id=school_id)
+    serializer = FeeCategorySerializer(fee_structures, many=True)
     return Response(serializer.data)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_fee_structure_by_id(request, fee_id):
     try:
-        fee = FeeStructure.objects.get(id=fee_id)
-        serializer = FeeStructureSerializer(fee)
+        fee = FeeCategory.objects.get(id=fee_id)
+        serializer = FeeCategorySerializer(fee)
         return Response(serializer.data)
-    except FeeStructure.DoesNotExist:
+    except FeeCategory.DoesNotExist:
         return Response({'error': 'Fee Structure not found'}, status=status.HTTP_404_NOT_FOUND)
 
+# @api_view(['PUT'])
+# @permission_classes([IsAuthenticated])
+# def update_fee_structure(request, fee_id):
+#     try:
+#         fee = FeeCategory.objects.get(id=fee_id)
+#     except FeeCategory.DoesNotExist:
+#         return Response({'error': 'Fee Structure not found'}, status=status.HTTP_404_NOT_FOUND)
+
+#     serializer = FeeCategorySerializer(fee, data=request.data)
+#     if serializer.is_valid():
+#         serializer.save()
+#         return Response(serializer.data)
+#     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
 def update_fee_structure(request, fee_id):
     try:
-        fee = FeeStructure.objects.get(id=fee_id)
-    except FeeStructure.DoesNotExist:
+        fee = FeeCategory.objects.get(id=fee_id)
+    except FeeCategory.DoesNotExist:
         return Response({'error': 'Fee Structure not found'}, status=status.HTTP_404_NOT_FOUND)
 
-    serializer = FeeStructureSerializer(fee, data=request.data)
-    if serializer.is_valid():
-        serializer.save()
-        return Response(serializer.data)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        serializer = FeeCategorySerializer(fee, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        # return Response({'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+    
+    except ValidationError as e:
+        return Response({'error': 'Invalid data', 'details': e.detail}, status=status.HTTP_400_BAD_REQUEST)
+
+    except DatabaseError as e:
+        return Response({'error': 'Database error occurred', 'details': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    except Exception as e:
+        return Response({'error': 'An unexpected error occurred', 'details': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
 def delete_fee_structure(request, fee_id):
     try:
-        fee = FeeStructure.objects.get(id=fee_id)
+        fee = FeeCategory.objects.get(id=fee_id)
         fee.delete()
         return Response({'message': 'Fee Structure deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
-    except FeeStructure.DoesNotExist:
+    except FeeCategory.DoesNotExist:
         return Response({'error': 'Fee Structure not found'}, status=status.HTTP_404_NOT_FOUND)
 
 
@@ -487,19 +512,53 @@ def delete_fee_structure(request, fee_id):
 # from rest_framework.decorators import api_view
 # from rest_framework.response import Response
 # from rest_framework import status
-from .models import FeePayment
-from .serializers import FeePaymentSerializer
-from django.db.models import Sum
+# from .models import FeePayment
+# from .serializers import FeePaymentSerializer
+# from django.db.models import Sum
 
-# Create FeePayment
+# # Create FeePayment
+# from rest_framework.decorators import api_view, permission_classes
+# from rest_framework.permissions import IsAuthenticated
+# from rest_framework.response import Response
+# from rest_framework import status
+# from django.db import DatabaseError
+# from rest_framework.exceptions import ValidationError
+from .serializers import FeePaymentSerializer
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def create_fee_payment(request):
-    serializer = FeePaymentSerializer(data=request.data)
-    if serializer.is_valid():
-        serializer.save()
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        data = request.data
+        data["invoice_id"] = "135cjnnaiu8gqqb"
+        print("Incoming Fee Payment Data:", data)
+
+        serializer = FeePaymentSerializer(data=data)
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        else:
+            # 🔴 This line was missing — handle serializer validation errors
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    except ValidationError as e:
+        return Response({
+            'error': 'Invalid data',
+            'details': e.detail
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    except DatabaseError as e:
+        return Response({
+            'error': 'Database error occurred',
+            'details': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    except Exception as e:
+        return Response({
+            'error': 'An unexpected error occurred',
+            'details': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # Read all payments (or filter by student or month/year)
 @api_view(['GET'])

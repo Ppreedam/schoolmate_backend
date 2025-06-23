@@ -12,7 +12,7 @@ urlpatterns = [
     path("logout/", views.user_logout_view, name="user_logout"),
     path("get/all/users/", views.get_all_users, name="get_all_users"),
     path('changepassword/', views.user_change_password_views, name='changepassword'),
-    path('send_otp_for_reset_password/', views.send_otp_views, name='send_otp'),
+    path('send_otp_on_email/', views.send_otp_views, name='send_otp'),
     path('verify_otp/', views.verify_otp_views, name='verify_otp'),
     # create school
     path("create/school/", views.create_school_view, name="create_school"),
@@ -29,9 +29,9 @@ urlpatterns = [
     path('students/<int:student_id>/delete/', views.delete_student, name='delete_student'),
 
     # Fee Structure
-    path('fees/create/', views.create_fee_structure, name='create_fee_structure'),
-    path('get/all/fees/', views.get_fee_structures_by_school, name='get_fee_structures_by_school'),
-    path('fees/<int:fee_id>/', views.get_fee_structure_by_id, name='get_fee_structure_by_id'),
+    path('create/fees/categories/', views.create_fee_structure, name='create_fee_structure'),
+    path('get/all/fees/categories/', views.get_fee_structures_by_school, name='get_fee_structures_by_school'),
+    path('fees/<int:fee_id>/categories/', views.get_fee_structure_by_id, name='get_fee_structure_by_id'),
     path('fees/<int:fee_id>/update/', views.update_fee_structure, name='update_fee_structure'),
     path('fees/<int:fee_id>/delete/', views.delete_fee_structure, name='delete_fee_structure'),
 
@@ -45,7 +45,7 @@ urlpatterns = [
     # # Get by school/student
     # path('fees/history/<str:school_id>/<int:student_id>/', views.get_student_payment_history_by_school, name='student_fee_history_by_school'),
     # path('fees/history/<str:school_id>/', views.get_all_payments_by_school, name='all_fee_history_by_school'),
-    path('create/fee/history/', views.create_fee_payment), #Add fee record
+    path('create/fee/history/', views.create_fee_payment, name="fees categories"), #Add fee record
     path('fee/all/', views.get_fee_payments), #Filter fee data
     path('fee/update/<int:pk>/', views.update_fee_payment), #Update fee record
     path('fee/delete/<int:pk>/', views.delete_fee_payment), #Delete fee record

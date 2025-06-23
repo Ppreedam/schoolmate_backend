@@ -128,7 +128,7 @@ class Student(models.Model):
         return self.student_name
     
 
-class FeeStructure(models.Model):
+class FeeCategory(models.Model):
     name = models.CharField(max_length=255)
     amount = models.FloatField()
     due_date = models.DateField()
@@ -136,7 +136,6 @@ class FeeStructure(models.Model):
     frequency = models.CharField(max_length=50)  # e.g., Regular, Quarterly, One-Time
     student_class = models.CharField(max_length=100)
     section = models.CharField(max_length=10)
-    # school = models.ForeignKey('School', on_delete=models.CASCADE, related_name='fee_structures')
     school_id = models.CharField(max_length=50)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

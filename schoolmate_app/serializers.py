@@ -1,7 +1,7 @@
 from django.contrib.auth.models import User
 
 from rest_framework import serializers
-from schoolmate_app.models import User, School, Student, FeePayment, FeeStructure
+from schoolmate_app.models import User, School, Student, FeePayment, FeeCategory
 
 
 # class UserRegistrationSerializer(serializers.ModelSerializer):
@@ -80,9 +80,9 @@ class StudentSerializer(serializers.ModelSerializer):
         model = Student
         fields = '__all__'
 
-class FeeStructureSerializer(serializers.ModelSerializer):
+class FeeCategorySerializer(serializers.ModelSerializer):
     class Meta:
-        model = FeeStructure
+        model = FeeCategory
         fields = '__all__'
 
 
