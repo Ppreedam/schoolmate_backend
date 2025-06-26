@@ -49,6 +49,8 @@ class User(AbstractBaseUser):
   phone = models.CharField(max_length=200, default='', blank=True)
   school_id = models.CharField(max_length=50, default='', blank=True)
   role = models.CharField(max_length=100, default='')
+  customer_id = models.CharField(max_length=100, default='')
+  plain_id = models.CharField(max_length=100, default='')
   special_offers = models.DecimalField(max_digits=10, decimal_places=2, default=0)
   tc = models.BooleanField()
   is_active = models.BooleanField(default=False)
@@ -195,3 +197,47 @@ class EmailOTP(models.Model):
   )
     otp = models.CharField(max_length=6)
     expiration_time = models.DateTimeField()
+
+class ContentBlock(models.Model):
+    school_id = models.CharField(max_length=100, unique=True)
+    domain = models.CharField(max_length=100)
+    data = models.JSONField()
+
+    def __str__(self):
+        return self.school_id
+
+
+
+import uuid
+
+def upload_to(instance, filename):
+    return f"branding/{instance.school_id}/{uuid.uuid4()}_{filename}"
+
+class BrandingSettings(models.Model):
+    school_id = models.CharField(max_length=100, unique=True)
+    
+    color_scheme = models.JSONField(default=dict)
+    logos = models.JSONField(default=dict)
+    fonts = models.JSONField(default=dict)
+    
+    theme_name = models.CharField(max_length=100, blank=True, null=True)
+    custom_css = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return f"Branding for {self.school_id}"
+    
+
+class SchoolGeneralSettings(models.Model):
+    school_id = models.CharField(max_length=100, unique=True)
+
+    contact_info = models.JSONField(default=dict)     # Phone, email, address, etc.
+    social_links = models.JSONField(default=dict)     # FB, Twitter, WhatsApp etc.
+    footer_content = models.JSONField(default=dict)   # About, copyright etc.
+
+    basic_info = models.JSONField(default=dict)       # School name, logo, type etc.
+
+    seo_metadata = models.JSONField(default=dict)     # meta_title, og_description etc.
+
+    def __str__(self):
+        return self.school_id
+

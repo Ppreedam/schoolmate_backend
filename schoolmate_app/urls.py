@@ -14,6 +14,7 @@ urlpatterns = [
     path('changepassword/', views.user_change_password_views, name='changepassword'),
     path('send_otp_on_email/', views.send_otp_views, name='send_otp'),
     path('verify_otp/', views.verify_otp_views, name='verify_otp'),
+    path('delete/user/<int:pk>/', views.Delete_user_view, name='delete_user'),
     # create school
     path("create/school/", views.create_school_view, name="create_school"),
     path("schools/", views.list_schools, name="list_schools"), # list all schools
@@ -46,10 +47,28 @@ urlpatterns = [
     # path('fees/history/<str:school_id>/<int:student_id>/', views.get_student_payment_history_by_school, name='student_fee_history_by_school'),
     # path('fees/history/<str:school_id>/', views.get_all_payments_by_school, name='all_fee_history_by_school'),
     path('create/fee/history/', views.create_fee_payment, name="fees categories"), #Add fee record
-    path('fee/all/', views.get_fee_payments), #Filter fee data
+    path('fee/history/', views.get_fee_payments), #Filter fee data
     path('fee/update/<int:pk>/', views.update_fee_payment), #Update fee record
     path('fee/delete/<int:pk>/', views.delete_fee_payment), #Delete fee record
     path('fee/history/<int:student_id>/', views.get_fee_history_by_student),    # Get fee history by student ID
-    path('fee/summary/<int:student_id>/', views.get_fee_summary_by_student)     # Get fee summary by student ID
+    path('fee/summary/<int:student_id>/', views.get_fee_summary_by_student),     # Get fee summary by student ID
+
+    path('create/subsctription/', views.create_subscription_plan_view, name='create_subscription'),  # Create subscription
+
+    # website settings
+    path('api/content/', views.create_content_block, name='create_content'),
+    path('api/content/<str:school_id>/', views.get_content_block_by_school_id, name='get_content_by_school'),
+    path('api/content/by-domain/<str:domain>/', views.get_content_block_by_domain, name='get_content_by_domain'),
+    path('api/content/<str:school_id>/update/', views.update_content_section, name='update_section'),
+
+    path('api/branding/', views.create_branding_settings, name='create_branding'),  # <-- New
+    path('api/branding/<str:school_id>/', views.get_branding_settings, name='get_branding'),
+    path('api/branding/<str:school_id>/update/', views.update_branding_settings, name='update_branding'),
+    path('api/branding/<str:school_id>/upload-logo', views.upload_logo, name='upload_logo'),
+
+
+    path('api/school/settings/', views.create_school_settings, name='create_school_settings'),  # ✅ create
+    path('api/school/<str:school_id>/settings/', views.get_school_settings, name='get_school_settings'),
+    path('api/school/<str:school_id>/update/', views.update_school_settings, name='update_school_settings'),
 
 ]

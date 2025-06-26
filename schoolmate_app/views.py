@@ -13,12 +13,12 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 from component import send_email
 from rest_framework.decorators import api_view, permission_classes
-from .models import FeeCategory, School, Student, User, FeePayment, EmailOTP
+from .models import FeeCategory, School, Student, User, FeePayment, EmailOTP, BrandingSettings
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.exceptions import ValidationError
 from django.db import DatabaseError
 import os, ast, json, uuid, random, string, razorpay, base64, requests, shortuuid, re, math
-from .serializers import UserRegistrationSerializer, UserLoginSerializer, UserProfileSerializer, SchoolSerializer, StudentSerializer, FeeCategorySerializer
+from .serializers import UserRegistrationSerializer, UserLoginSerializer, UserProfileSerializer, SchoolSerializer, StudentSerializer, FeeCategorySerializer, BrandingSettingsSerializer
 
 def generate_unique_referral_code(number):
     return shortuuid.uuid()[:number]  # Generate a short, human-readable code
@@ -51,8 +51,10 @@ def user_registrations_views(request):
         for field in required_fields:
             if not data.get(field):
                 return JsonResponse({"error": f"Missing required field: {field}"}, status=400)
-
-        data['email'] = data['email'].lower()
+        email = data['email'].lower()
+        # password = data['password']
+        # panel_link = data["panel_link"]
+        data['email'] = email
         data['role'] = data.get('role', 'parents')
         data['special_offers'] = data.get('special_offers', 0)
         data['display_name'] = data['name']
@@ -79,6 +81,7 @@ def user_registrations_views(request):
         user = serializer.save()
 
         token = get_tokens_for_user(user)
+        # res = send_email.send_username_and_password_function(email, email, password, panel_link)
         return Response({'token': token, 'msg': 'Registration Successful'}, status=status.HTTP_201_CREATED)
 
     except DRFValidationError as e:
@@ -299,6 +302,26 @@ def verify_otp_views(request):
         return JsonResponse({"error": str(error)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def Delete_user_view(request, pk):
+    """
+        function help us delete the user from database
+
+        Args:-
+            email:-
+            profile_id:-
+
+        Return:-
+            return message User Successfully Deleted with 200 status code
+    """
+    user_email = request.user.email
+    try:
+        profile = get_object_or_404(User, id=pk)
+        profile.save()
+        return Response({'message': f'User Successfully Deleted'}, status=status.HTTP_200_OK)
+    except User.DoesNotExist:
+        return Response({'error': f'User with email {user_email} does not exist.'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 # Create
@@ -530,7 +553,8 @@ from .serializers import FeePaymentSerializer
 def create_fee_payment(request):
     try:
         data = request.data
-        # data["invoice_id"] = "135cjnnaiu8gqqb"
+        school_id = request.user.school_id
+        data["school_id"] = school_id
         print("Incoming Fee Payment Data:", data)
 
         serializer = FeePaymentSerializer(data=data)
@@ -564,14 +588,14 @@ def create_fee_payment(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_fee_payments(request):
-    student_id = request.GET.get('student')
+    student_id = request.GET.get('student_id')
     month = request.GET.get('month')
     year = request.GET.get('year')
     school_id = request.user.school_id
 
     filters = {}
     if student_id:
-        filters['student_id'] = student_id
+        filters['student'] = student_id
     if month:
         filters['month'] = month
     if year:
@@ -630,3 +654,312 @@ def get_fee_summary_by_student(request, student_id):
         "total_paid": total_paid,
         "remaining": total_due - total_paid
     })
+
+
+
+from payment_entity import razorpay_subscription
+from django.conf import settings
+
+
+import razorpay
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_subscription_plan_view(request):
+    """
+    API endpoint to create a Razorpay subscription plan and subscribe a customer for school fee payments.
+    """
+
+    try:
+        customer_id = request.user.razorpay_customer_id
+        email = request.data.get("email", request.user.email)
+        name = request.data.get("name", request.user.name)
+        contact = request.data.get("contact", request.user.phone)
+        profileid = request.data.get("profileid", id)
+        if not customer_id:
+            customer_id = razorpay_subscription.create_customer(client, name, email, contact)
+            profile = get_object_or_404(User, id=profileid)
+            profile.razorpay_customer_id = customer_id
+            profile.save()
+        # Initialize Razorpay client
+        client = razorpay.Client(auth=(settings.RAZORPAY_API_KEY, settings.RAZORPAY_API_SECRET))
+
+        # Extract required fields from the payload
+        period = request.data.get("period", "monthly")
+        interval = int(request.data.get("interval", 1))
+        name = request.data.get("name", "Test Plan 1 Month")
+        amount = int(request.data.get("amount", 500))  # in paise
+        currency = request.data.get("currency", "INR")
+        description = request.data.get("description", "Monthly Subscription Plan")
+
+        # Student and subscription-specific fields
+        customer_id = request.data.get("customer_id")
+        student_name = request.data.get("student_name")
+        admission_year = request.data.get("admission_year")
+        total_months = int(request.data.get("total_months", 12))
+        monthly_fee_in_paise = int(request.data.get("monthly_fee_in_paise", amount))
+        one_time_fee_in_paise = int(request.data.get("one_time_fee_in_paise", 0))
+
+        # Validation: Check required fields
+        if not all([customer_id, student_name, admission_year]):
+            return Response({"error": "Missing required fields"}, status=400)
+
+        # Prepare plan data
+        plan_data = {
+            "period": period,
+            "interval": interval,
+            "item": {
+                "name": name,
+                "amount": amount,
+                "currency": currency,
+                "description": description
+            }
+        }
+
+        # Create plan
+        plan = razorpay_subscription.create_razorpay_plan_util(client, plan_data)
+        plan_id = plan.get("id")
+        if not plan_id:
+            return Response({"error": "Failed to create plan"}, status=400)
+
+        # Create subscription
+        subscription = razorpay_subscription.create_school_fee_subscription(
+            client,
+            plan_id,
+            customer_id,
+            student_name,
+            admission_year,
+            total_months,
+            monthly_fee_in_paise,
+            one_time_fee_in_paise
+        )
+
+        if not subscription:
+            return Response({"error": "Failed to create subscription"}, status=400)
+
+        return Response({"subscription_id": subscription['id'], "status": subscription['status'], "subscription": subscription}, status=201)
+
+    except Exception as e:
+        return Response({"error": "Plan creation failed", "details": str(e)}, status=500)
+    
+
+
+from .models import ContentBlock
+from .serializers import ContentBlockSerializer
+
+@api_view(['POST'])
+# @permission_classes([IsAuthenticated])
+def create_content_block(request):
+    serializer = ContentBlockSerializer(data=request.data)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
+# @permission_classes([IsAuthenticated])
+def get_content_block_by_school_id(request, school_id):
+    try:
+        block = ContentBlock.objects.get(school_id=school_id)
+        serializer = ContentBlockSerializer(block)
+        return Response(serializer.data)
+    except ContentBlock.DoesNotExist:
+        return Response({'error': 'Content not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+@api_view(['GET'])
+def get_content_block_by_domain(request, domain):
+    try:
+        # domain = request.GET.get('domain')
+        block = ContentBlock.objects.get(domain=domain)
+        serializer = ContentBlockSerializer(block)
+        return Response(serializer.data)
+    except ContentBlock.DoesNotExist:
+        return Response({'error': 'Content not found'}, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['PATCH'])
+# @permission_classes([IsAuthenticated])
+def update_content_section(request, school_id):
+    """
+    PATCH /api/cms/<school_id>/update/
+    {
+        "section": "hero",
+        "data": {
+            "title": "New Title"
+        }
+    }
+    """
+    try:
+        block = ContentBlock.objects.get(school_id=school_id)
+    except ContentBlock.DoesNotExist:
+        return Response({'error': 'Content not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    section = request.data.get("section")
+    new_data = request.data.get("data")
+
+    if not section or not new_data:
+        return Response({"error": "Both 'section' and 'data' fields are required."}, status=400)
+
+    # Initialize section if not present
+    if section not in block.data or not isinstance(block.data.get(section), dict):
+        block.data[section] = {}
+
+    # Update specific fields inside the section
+    block.data[section].update(new_data)
+    block.save()
+
+    return Response({
+        "msg": f"Section '{section}' updated successfully.",
+        "data": block.data[section]
+    }, status=200)
+
+
+import base64
+import uuid
+from django.core.files.base import ContentFile
+# from rest_framework.decorators import api_view
+# from rest_framework.response import Response
+# from rest_framework import status
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_branding_settings(request):
+    """
+    POST /api/branding/
+    {
+        "school_id": "school_Zkjszavj",
+        "color_scheme": { ... },
+        "logos": { ... },
+        "fonts": { ... },
+        "theme_name": "Blue Ocean",
+        "custom_css": "/* Custom styles */"
+    }
+    """
+    if BrandingSettings.objects.filter(school_id=request.data.get('school_id')).exists():
+        return Response({'error': 'Branding already exists for this school_id'}, status=400)
+
+    serializer = BrandingSettingsSerializer(data=request.data)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data, status=201)
+    return Response(serializer.errors, status=400)
+
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_branding_settings(request, school_id):
+    try:
+        branding = BrandingSettings.objects.get(school_id=school_id)
+        serializer = BrandingSettingsSerializer(branding)
+        return Response(serializer.data)
+    except BrandingSettings.DoesNotExist:
+        return Response({'error': 'Branding settings not found'}, status=404)
+
+
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def update_branding_settings(request, school_id):
+    try:
+        branding, _ = BrandingSettings.objects.get_or_create(school_id=school_id)
+        for field in ['color_scheme', 'logos', 'fonts', 'theme_name', 'custom_css']:
+            if field in request.data:
+                setattr(branding, field, request.data[field])
+        branding.save()
+        serializer = BrandingSettingsSerializer(branding)
+        return Response(serializer.data)
+    except Exception as e:
+        return Response({'error': str(e)}, status=400)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def upload_logo(request, school_id):
+    logo_type = request.data.get('logo_type')
+    file_data = request.data.get('file')
+
+    if not logo_type or not file_data:
+        return Response({'error': 'logo_type and file are required'}, status=400)
+
+    try:
+        branding, _ = BrandingSettings.objects.get_or_create(school_id=school_id)
+
+        # Decode base64 file
+        format, imgstr = file_data.split(';base64,')
+        ext = format.split('/')[-1]
+        file_name = f"{logo_type}_{uuid.uuid4()}.{ext}"
+        file = ContentFile(base64.b64decode(imgstr), name=file_name)
+
+        # Upload the file to storage (you can use your own method)
+        from django.core.files.storage import default_storage
+        path = default_storage.save(f"branding/{school_id}/{file_name}", file)
+        full_url = default_storage.url(path)
+
+        branding.logos[{
+            "main": "main_logo_url",
+            "favicon": "favicon_url",
+            "footer": "footer_logo_url"
+        }[logo_type]] = full_url
+        branding.save()
+
+        return Response({
+            "message": f"{logo_type} logo uploaded successfully",
+            "url": full_url
+        })
+    except Exception as e:
+        return Response({'error': str(e)}, status=400)
+
+
+# from rest_framework.decorators import api_view
+# from rest_framework.response import Response
+# from rest_framework import status
+from .models import SchoolGeneralSettings
+from .serializers import SchoolGeneralSettingsSerializer
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_school_settings(request):
+    """
+    POST /api/school/settings/
+    {
+        "school_id": "school_Zkjszavj",
+        "contact_info": { ... },
+        "social_links": { ... },
+        "footer_content": { ... },
+        "basic_info": { ... },
+        "seo_metadata": { ... }
+    }
+    """
+    if SchoolGeneralSettings.objects.filter(school_id=request.data.get('school_id')).exists():
+        return Response({'error': 'Settings already exist for this school_id'}, status=400)
+
+    serializer = SchoolGeneralSettingsSerializer(data=request.data)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data, status=201)
+    return Response(serializer.errors, status=400)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_school_settings(request, school_id):
+    try:
+        settings = SchoolGeneralSettings.objects.get(school_id=school_id)
+        return Response(SchoolGeneralSettingsSerializer(settings).data)
+    except SchoolGeneralSettings.DoesNotExist:
+        return Response({'error': 'Settings not found'}, status=404)
+
+
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def update_school_settings(request, school_id):
+    settings, _ = SchoolGeneralSettings.objects.get_or_create(school_id=school_id)
+    # Loop through sections: contact_info, social_links, footer_content, basic_info, seo_metadata
+    for key in ['contact_info', 'social_links', 'footer_content', 'basic_info', 'seo_metadata']:
+        if key in request.data:
+            current_data = getattr(settings, key, {})
+            current_data.update(request.data[key])
+            setattr(settings, key, current_data)
+    settings.save()
+    return Response(SchoolGeneralSettingsSerializer(settings).data)
