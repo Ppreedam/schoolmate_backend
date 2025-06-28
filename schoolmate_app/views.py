@@ -20,6 +20,10 @@ from django.db import DatabaseError
 import os, ast, json, uuid, random, string, razorpay, base64, requests, shortuuid, re, math
 from .serializers import UserRegistrationSerializer, UserLoginSerializer, UserProfileSerializer, SchoolSerializer, StudentSerializer, FeeCategorySerializer, BrandingSettingsSerializer
 
+from dotenv import dotenv_values
+
+env_vars = dotenv_values()
+
 def generate_unique_referral_code(number):
     return shortuuid.uuid()[:number]  # Generate a short, human-readable code
 
@@ -671,18 +675,21 @@ def create_subscription_plan_view(request):
     """
 
     try:
-        customer_id = request.user.razorpay_customer_id
-        email = request.data.get("email", request.user.email)
-        name = request.data.get("name", request.user.name)
-        contact = request.data.get("contact", request.user.phone)
-        profileid = request.data.get("profileid", id)
+        profileid = request.data.get("profileid")
+        profile = get_object_or_404(User, id=profileid)
+        customer_id = profile.razorpay_customer_id
+        email = request.data.get("email")
+        name = request.data.get("username")
+        contact = request.data.get("contact")
+        client = razorpay.Client(auth=(env_vars["RAZORPAY_KEY_ID"], env_vars["RAZORPAY_KEY_SECRET"]))
         if not customer_id:
             customer_id = razorpay_subscription.create_customer(client, name, email, contact)
             profile = get_object_or_404(User, id=profileid)
             profile.razorpay_customer_id = customer_id
             profile.save()
         # Initialize Razorpay client
-        client = razorpay.Client(auth=(settings.RAZORPAY_API_KEY, settings.RAZORPAY_API_SECRET))
+        # client = razorpay.Client(auth=(settings.RAZORPAY_API_KEY, settings.RAZORPAY_API_SECRET))
+        
 
         # Extract required fields from the payload
         period = request.data.get("period", "monthly")
@@ -693,7 +700,7 @@ def create_subscription_plan_view(request):
         description = request.data.get("description", "Monthly Subscription Plan")
 
         # Student and subscription-specific fields
-        customer_id = request.data.get("customer_id")
+        # customer_id = request.data.get("customer_id")
         student_name = request.data.get("student_name")
         admission_year = request.data.get("admission_year")
         total_months = int(request.data.get("total_months", 12))
@@ -703,24 +710,26 @@ def create_subscription_plan_view(request):
         # Validation: Check required fields
         if not all([customer_id, student_name, admission_year]):
             return Response({"error": "Missing required fields"}, status=400)
+        plan_id = profile.plain_id
 
-        # Prepare plan data
-        plan_data = {
-            "period": period,
-            "interval": interval,
-            "item": {
-                "name": name,
-                "amount": amount,
-                "currency": currency,
-                "description": description
-            }
-        }
-
-        # Create plan
-        plan = razorpay_subscription.create_razorpay_plan_util(client, plan_data)
-        plan_id = plan.get("id")
         if not plan_id:
-            return Response({"error": "Failed to create plan"}, status=400)
+            # Prepare plan data
+            plan_data = {
+                "period": period,
+                "interval": interval,
+                "item": {
+                    "name": name,
+                    "amount": amount,
+                    "currency": currency,
+                    "description": description
+                }
+            }
+
+            # Create plan
+            plan = razorpay_subscription.create_razorpay_plan_util(client, plan_data)
+            plan_id = plan.get("id")
+            profile.plain_id = plan_id
+            profile.save()
 
         # Create subscription
         subscription = razorpay_subscription.create_school_fee_subscription(

@@ -49,7 +49,7 @@ class User(AbstractBaseUser):
   phone = models.CharField(max_length=200, default='', blank=True)
   school_id = models.CharField(max_length=50, default='', blank=True)
   role = models.CharField(max_length=100, default='')
-  customer_id = models.CharField(max_length=100, default='')
+  razorpay_customer_id = models.CharField(max_length=100, default='')
   plain_id = models.CharField(max_length=100, default='')
   special_offers = models.DecimalField(max_digits=10, decimal_places=2, default=0)
   tc = models.BooleanField()

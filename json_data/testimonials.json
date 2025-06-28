@@ -1,0 +1,50 @@
+[
+  {
+    "name": "Priya Sharma",
+    "role": "माता",
+    "school": "दिल्ली पब्लिक स्कूल",
+    "content": "इस स्कूल की डिजिटल सुविधा से मैं अपने बेटे की पढ़ाई की जानकारी हर समय रख सकती हूं। टीचर्स से बात करना भी बहुत आसान हो गया है।",
+    "rating": 5,
+    "avatar": "PS"
+  },
+  {
+    "name": "राजेश कुमार",
+    "role": "पिता",
+    "school": "केंद्रीय विद्यालय",
+    "content": "बहुत अच्छी व्यवस्था है। मोबाइल एप से बच्चे के marks, attendance सब कुछ देख सकते हैं। स्कूल के सभी updates भी मिल जाते हैं।",
+    "rating": 5,
+    "avatar": "RK"
+  },
+  {
+    "name": "सुनीता देवी",
+    "role": "माता",
+    "school": "सरस्वती शिशु मंदिर",
+    "content": "Working mother होने के नाते यह बहुत helpful है। घर बैठे ही बच्चे की homework, test results सब देख सकती हूं। Teachers से contact भी आसान है।",
+    "rating": 5,
+    "avatar": "SD"
+  },
+  {
+    "name": "अमित पटेल",
+    "role": "पिता",
+    "school": "डी.ए.वी. पब्लिक स्कूल",
+    "content": "तीन बच्चों के studies track करना पहले मुश्किल था। अब सब एक ही जगह मिल जाता है। Parent-teacher meeting के dates भी miss नहीं होते।",
+    "rating": 5,
+    "avatar": "AP"
+  },
+  {
+    "name": "मीनाक्षी अग्रवाल",
+    "role": "माता",
+    "school": "रयान इंटरनेशनल स्कूल",
+    "content": "बच्चे की detailed progress report मिलती है। कौन से subject में improvement चाहिए, यह clear हो जाता है। Home discussion में बहुत help मिलती है।",
+    "rating": 5,
+    "avatar": "MA"
+  },
+  {
+    "name": "विकास गुप्ता",
+    "role": "पिता",
+    "school": "सेंट जेवियर्स स्कूल",
+    "content": "Security और privacy का पूरा ध्यान रखा गया है। Information safe रहती है और school से proper communication होता रहता है। Very satisfied हूं।",
+    "rating": 5,
+    "avatar": "VG"
+  }
+]

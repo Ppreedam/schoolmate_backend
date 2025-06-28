@@ -52,7 +52,7 @@ urlpatterns = [
     path('fee/delete/<int:pk>/', views.delete_fee_payment), #Delete fee record
     path('fee/history/<int:student_id>/', views.get_fee_history_by_student),    # Get fee history by student ID
     path('fee/summary/<int:student_id>/', views.get_fee_summary_by_student),     # Get fee summary by student ID
-
+    # payment gateway
     path('create/subsctription/', views.create_subscription_plan_view, name='create_subscription'),  # Create subscription
 
     # website settings
