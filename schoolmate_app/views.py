@@ -355,9 +355,10 @@ def list_schools(request):
 # Read One
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def get_school(request, pk):
+def get_school(request):
     try:
-        school = School.objects.get(pk=pk)
+        school_id = request.GET.get('school_id')
+        school = School.objects.get(school_id=school_id)
     except School.DoesNotExist:
         return Response({'error': 'School not found'}, status=status.HTTP_404_NOT_FOUND)
 

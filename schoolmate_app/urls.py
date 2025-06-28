@@ -18,7 +18,7 @@ urlpatterns = [
     # create school
     path("create/school/", views.create_school_view, name="create_school"),
     path("schools/", views.list_schools, name="list_schools"), # list all schools
-    path("school/<int:pk>/", views.get_school, name="get_school"), # get school by id
+    path("specific/school", views.get_school, name="get_school"), # get school by id
     path("update/school/<int:pk>/", views.update_school, name="update_school"), # update school by id
     path("delete/school/<int:pk>/", views.delete_school, name="delete_school"), # delete school by id
 
