@@ -51,6 +51,7 @@ class User(AbstractBaseUser):
   role = models.CharField(max_length=100, default='')
   razorpay_customer_id = models.CharField(max_length=100, default='')
   plain_id = models.CharField(max_length=100, default='')
+  subscription_id = models.CharField(max_length=100, default='')
   special_offers = models.DecimalField(max_digits=10, decimal_places=2, default=0)
   tc = models.BooleanField()
   is_active = models.BooleanField(default=False)

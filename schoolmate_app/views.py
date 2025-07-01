@@ -676,18 +676,22 @@ def create_subscription_plan_view(request):
     """
 
     try:
-        profileid = request.data.get("profileid")
-        profile = get_object_or_404(User, id=profileid)
-        customer_id = profile.razorpay_customer_id
+        data = request.data.copy()
+        print("Request Data:", data)
+        profileid = request.data.get("student_profileid")
         email = request.data.get("email")
+        # profileid = 3
+        profile = get_object_or_404(User, email=email)
+        customer_id = profile.razorpay_customer_id
+        
         name = request.data.get("username")
         contact = request.data.get("contact")
         client = razorpay.Client(auth=(env_vars["RAZORPAY_KEY_ID"], env_vars["RAZORPAY_KEY_SECRET"]))
-        if not customer_id:
-            customer_id = razorpay_subscription.create_customer(client, name, email, contact)
-            profile = get_object_or_404(User, id=profileid)
-            profile.razorpay_customer_id = customer_id
-            profile.save()
+        # if not customer_id:
+        #     customer_id = razorpay_subscription.create_customer(client, name, email, contact)
+        #     profile = get_object_or_404(User, id=profileid)
+        #     profile.razorpay_customer_id = customer_id
+        #     profile.save()
         # Initialize Razorpay client
         # client = razorpay.Client(auth=(settings.RAZORPAY_API_KEY, settings.RAZORPAY_API_SECRET))
         
@@ -696,7 +700,7 @@ def create_subscription_plan_view(request):
         period = request.data.get("period", "monthly")
         interval = int(request.data.get("interval", 1))
         name = request.data.get("name", "Test Plan 1 Month")
-        amount = int(request.data.get("amount", 500))  # in paise
+        # amount = int(request.data.get("amount", 500))  # in paise
         currency = request.data.get("currency", "INR")
         description = request.data.get("description", "Monthly Subscription Plan")
 
@@ -705,12 +709,12 @@ def create_subscription_plan_view(request):
         student_name = request.data.get("student_name")
         admission_year = request.data.get("admission_year")
         total_months = int(request.data.get("total_months", 12))
-        monthly_fee_in_paise = int(request.data.get("monthly_fee_in_paise", amount))
+        monthly_fee_in_paise = int(request.data.get("monthly_fee_in_paise"))
         one_time_fee_in_paise = int(request.data.get("one_time_fee_in_paise", 0))
 
         # Validation: Check required fields
-        if not all([customer_id, student_name, admission_year]):
-            return Response({"error": "Missing required fields"}, status=400)
+        # if not all([customer_id, student_name, admission_year]):
+        #     return Response({"error": "Missing required fields"}, status=400)
         plan_id = profile.plain_id
 
         if not plan_id:
@@ -720,7 +724,7 @@ def create_subscription_plan_view(request):
                 "interval": interval,
                 "item": {
                     "name": name,
-                    "amount": amount,
+                    "amount": monthly_fee_in_paise,
                     "currency": currency,
                     "description": description
                 }
@@ -728,6 +732,7 @@ def create_subscription_plan_view(request):
 
             # Create plan
             plan = razorpay_subscription.create_razorpay_plan_util(client, plan_data)
+            # plan = {"id": "plan_123", "period": period, "interval": interval, "item": {"name": name, "amount": monthly_fee_in_paise, "currency": currency, "description": description}}
             plan_id = plan.get("id")
             profile.plain_id = plan_id
             profile.save()
@@ -743,6 +748,13 @@ def create_subscription_plan_view(request):
             monthly_fee_in_paise,
             one_time_fee_in_paise
         )
+        # subscription = {
+        #     "id": "sub_123",
+        #     "status": "active",
+        #     "customer_id": customer_id,
+        #     "plan_id": plan_id,}
+        profile.subscription_id = subscription['id']
+        profile.save()
 
         if not subscription:
             return Response({"error": "Failed to create subscription"}, status=400)
