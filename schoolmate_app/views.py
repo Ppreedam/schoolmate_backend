@@ -13,12 +13,12 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 from component import send_email
 from rest_framework.decorators import api_view, permission_classes
-from .models import FeeCategory, School, Student, User, FeePayment, EmailOTP, BrandingSettings
+from .models import FeeCategory, School, Student, User, FeePayment, EmailOTP, BrandingSettings, Section, SchoolClass
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.exceptions import ValidationError
 from django.db import DatabaseError
 import os, ast, json, uuid, random, string, razorpay, base64, requests, shortuuid, re, math
-from .serializers import UserRegistrationSerializer, UserLoginSerializer, UserProfileSerializer, SchoolSerializer, StudentSerializer, FeeCategorySerializer, BrandingSettingsSerializer
+from .serializers import UserRegistrationSerializer, UserLoginSerializer, UserProfileSerializer, SchoolSerializer, StudentSerializer, FeeCategorySerializer, BrandingSettingsSerializer, SectionSerializer, SchoolClassSerializer
 
 from dotenv import dotenv_values
 
@@ -765,6 +765,24 @@ def create_subscription_plan_view(request):
         return Response({"error": "Plan creation failed", "details": str(e)}, status=500)
     
 
+def get_subscription_and_plan_view(request):
+    """
+    API endpoint to retrieve a subscription plan by its ID.
+    """
+    try:
+        plan_id = request.GET.get("plan_id")
+        subscription_id = request.GET.get("subscription_id")
+        if not plan_id and subscription_id:
+            return Response({"error": "plan_id and subscription_id is required"}, status=400)
+        client = razorpay.Client(auth=(env_vars["RAZORPAY_KEY_ID"], env_vars["RAZORPAY_KEY_SECRET"]))
+        plan = razorpay_subscription.get_razorpay_plan(client, plan_id)
+        subscription_details = client.subscription.fetch(subscription_id)
+
+        if not plan:
+            return Response({"error": "Plan not found"}, status=404)    
+        return Response(plan, status=200)
+    except Exception as e:
+        return Response({"error": "Failed to retrieve plan", "details": str(e)}, status=500)
 
 from .models import ContentBlock
 from .serializers import ContentBlockSerializer
@@ -985,3 +1003,94 @@ def update_school_settings(request, school_id):
             setattr(settings, key, current_data)
     settings.save()
     return Response(SchoolGeneralSettingsSerializer(settings).data)
+
+
+
+# class management start
+# 🔹 List All or Create New Class
+@api_view(['GET', 'POST'])
+def school_class_list_create(request):
+    if request.method == 'GET':
+        # Try to get from query param, fallback to user's school_id
+        school_id = request.GET.get('school_id')
+
+        if school_id:
+            classes = SchoolClass.objects.filter(school_id=school_id)
+        else:
+            classes = SchoolClass.objects.all()
+        serializer = SchoolClassSerializer(classes, many=True)
+        return Response(serializer.data)
+
+    elif request.method == 'POST':
+        serializer = SchoolClassSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+# 🔹 Retrieve, Update or Delete Class by ID
+@api_view(['GET', 'PUT', 'DELETE'])
+def school_class_detail(request, pk):
+    try:
+        school_class = SchoolClass.objects.get(pk=pk)
+    except SchoolClass.DoesNotExist:
+        return Response({"error": "Class not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        serializer = SchoolClassSerializer(school_class)
+        return Response(serializer.data)
+
+    elif request.method == 'PUT':
+        serializer = SchoolClassSerializer(school_class, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        school_class.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+# class management end
+
+# section managment start
+@api_view(['GET', 'POST'])
+def section_list_create(request):
+    if request.method == 'GET':
+        school_id = request.GET.get('school_id')
+        class_id = request.GET.get('class_id')  # This is the class_ref foreign key
+
+        filters = {}
+
+        if school_id:
+            filters['school_id'] = school_id
+
+        if class_id:
+            filters['class_ref_id'] = class_id
+
+        sections = Section.objects.filter(**filters)
+        serializer = SectionSerializer(sections, many=True)
+        return Response(serializer.data)
+
+    elif request.method == 'POST':
+        serializer = SectionSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+# 🔹 Retrieve, update, delete section by ID
+@api_view(['DELETE'])
+def section_detail(request, pk):
+    try:
+        section = Section.objects.get(pk=pk)
+    except Section.DoesNotExist:
+        return Response({"error": "Section not found"}, status=status.HTTP_404_NOT_FOUND)
+    if request.method == 'DELETE':
+        section.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+
+# section managment end

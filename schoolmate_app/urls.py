@@ -54,7 +54,7 @@ urlpatterns = [
     path('fee/summary/<int:student_id>/', views.get_fee_summary_by_student),     # Get fee summary by student ID
     # payment gateway
     path('create/subsctription/', views.create_subscription_plan_view, name='create_subscription'),  # Create subscription
-
+    path("plan/details/", views.get_subscription_and_plan_view, name="get_subscription_plan"),  # Get subscription plan by ID
     # website settings
     path('api/content/', views.create_content_block, name='create_content'),
     path('api/content/<str:school_id>/', views.get_content_block_by_school_id, name='get_content_by_school'),
@@ -70,5 +70,13 @@ urlpatterns = [
     path('api/school/settings/', views.create_school_settings, name='create_school_settings'),  # ✅ create
     path('api/school/<str:school_id>/settings/', views.get_school_settings, name='get_school_settings'),
     path('api/school/<str:school_id>/update/', views.update_school_settings, name='update_school_settings'),
+
+    # class management
+    path('classes/', views.school_class_list_create, name='class-list-create'),
+    path('classes/<int:pk>/', views.school_class_detail, name='class-detail'),
+
+    # section management
+    path('sections/', views.section_list_create, name='section-list-create'),
+    path('sections/<int:pk>/', views.section_detail, name='section-detail'),
 
 ]

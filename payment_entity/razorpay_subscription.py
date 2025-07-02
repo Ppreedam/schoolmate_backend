@@ -88,3 +88,17 @@ def create_customer(client, name, email, contact):
     # Example: user.razorpay_customer_id = customer['id']
     
     return customer['id']
+
+def get_razorpay_plan(client, plan_id):
+    """
+    Retrieves a Razorpay plan by its ID.
+    Args:
+    """
+    try:
+        plan_details = client.plan.fetch(plan_id)
+        # print("Plan Details:")
+        print(plan_details)
+    except Exception as e:
+        print("Something went wrong:", e)
+
+

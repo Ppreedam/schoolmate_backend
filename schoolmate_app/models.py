@@ -242,3 +242,19 @@ class SchoolGeneralSettings(models.Model):
     def __str__(self):
         return self.school_id
 
+
+class SchoolClass(models.Model):
+    class_name = models.CharField(max_length=100)
+    grade = models.CharField(max_length=100)
+    school_id = models.CharField(max_length=100)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name
+    
+class Section(models.Model):
+    class_ref = models.ForeignKey(SchoolClass, related_name='sections', on_delete=models.CASCADE)
+    school_id = models.CharField(max_length=100, default='')  # Optional: custom ID like 'class_1'
+    name = models.CharField(max_length=100)
+    capacity = models.PositiveIntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)

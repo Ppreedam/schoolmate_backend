@@ -3,7 +3,7 @@ from django.contrib.auth.models import User
 from rest_framework import serializers
 from .models import BrandingSettings
 from .models import BrandingSettings
-from .models import BrandingSettings
+from .models import BrandingSettings, SchoolClass
 from schoolmate_app.models import User, School, Student, FeePayment, FeeCategory, ContentBlock, BrandingSettings, SchoolGeneralSettings
 
 
@@ -109,4 +109,17 @@ class BrandingSettingsSerializer(serializers.ModelSerializer):
 class SchoolGeneralSettingsSerializer(serializers.ModelSerializer):
     class Meta:
         model = SchoolGeneralSettings
+        fields = '__all__'
+
+class SchoolClassSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SchoolClass
+        fields = '__all__'
+
+from rest_framework import serializers
+from .models import SchoolClass, Section
+
+class SectionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Section
         fields = '__all__'
