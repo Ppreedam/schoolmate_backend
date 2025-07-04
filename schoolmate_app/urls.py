@@ -24,6 +24,7 @@ urlpatterns = [
 
     # create student
     path('get/all/students/', views.get_all_students, name='get_all_students'),
+    path('get/students', views.get_all_students_by_class_section_views, name='get_all_students'),
     path('students/create/', views.create_student, name='create_student'),
     path('students/<int:student_id>/', views.get_student, name='get_student'),
     path('students/<int:student_id>/update/', views.update_student, name='update_student'),
@@ -79,4 +80,10 @@ urlpatterns = [
     path('sections/', views.section_list_create, name='section-list-create'),
     path('sections/<int:pk>/', views.section_detail, name='section-detail'),
 
+    # attendance management
+    path('attendance/mark/', views.mark_attendance_view),
+    path('attendance/', views.get_attendance_view),
+    # path('attendance/<str:student_id>/<str:date>/', views.delete_attendance_view),
+    path('attendance/report/', views.attendance_report_view),  # Get attendance report by student ID and date range
+    path('attendance/summary/', views.total_attendance_summary_range_view)  # Get attendance summary by student ID and date range
 ]

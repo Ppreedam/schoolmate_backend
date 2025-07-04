@@ -13,12 +13,12 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 from component import send_email
 from rest_framework.decorators import api_view, permission_classes
-from .models import FeeCategory, School, Student, User, FeePayment, EmailOTP, BrandingSettings, Section, SchoolClass
+from .models import FeeCategory, School, Student, User, FeePayment, EmailOTP, BrandingSettings, Section, SchoolClass, Attendance
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.exceptions import ValidationError
 from django.db import DatabaseError
 import os, ast, json, uuid, random, string, razorpay, base64, requests, shortuuid, re, math
-from .serializers import UserRegistrationSerializer, UserLoginSerializer, UserProfileSerializer, SchoolSerializer, StudentSerializer, FeeCategorySerializer, BrandingSettingsSerializer, SectionSerializer, SchoolClassSerializer
+from .serializers import UserRegistrationSerializer, UserLoginSerializer, UserProfileSerializer, SchoolSerializer, StudentSerializer, FeeCategorySerializer, BrandingSettingsSerializer, SectionSerializer, SchoolClassSerializer, AttendanceSerializer, AttendanceReportSerializer
 
 from dotenv import dotenv_values
 
@@ -416,6 +416,38 @@ def get_all_students(request):
     students = Student.objects.filter(school_id=school_id)
     serializer = StudentSerializer(students, many=True)
     return Response(serializer.data)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_all_students_by_class_section_views(request):
+    school_id = request.user.school_id
+    class_name = request.GET.get('class_name')
+    section = request.GET.get('section')
+
+    # Validate required parameters
+    if not all([school_id, class_name, section]):
+        return Response(
+            {'error': 'school_id, class_name, and section are required.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # Apply strict filters
+    students = Student.objects.filter(
+        school_id=school_id,
+        student_class=class_name,
+        section=section
+    )
+
+    if not students.exists():
+        return Response(
+            {'error': 'No students found for the given class and section'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+    serializer = StudentSerializer(students, many=True)
+    return Response(serializer.data)
+
+
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -1094,3 +1126,173 @@ def section_detail(request, pk):
 
 
 # section managment end
+# attendence management start
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def mark_attendance_view(request):
+    user = request.user
+    records = request.data.get('records', [])
+    
+    if not records:
+        return Response({'error': 'No attendance records provided.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    responses = []
+
+    for record in records:
+        student_id = record.get('student_id')
+        school_id = record.get('school_id', user.school_id)  # Use user's school_id if not provided
+        class_id = record.get('class_id')
+        section_id = record.get('section_id')
+        date = record.get('date')
+        status_value = record.get('status')
+
+        if not all([student_id, class_id, section_id, date, status_value]):
+            responses.append({'student_id': student_id, 'error': 'Missing required fields.'})
+            continue
+
+        try:
+            attendance_obj, created = Attendance.objects.update_or_create(
+                student_id=student_id,
+                date=date,
+                defaults={
+                    'class_id_id': class_id,
+                    'section_id_id': section_id,
+                    'status': status_value,
+                    'marked_by': user,
+                    'school_id' : school_id  # Ensure school_id is set
+                }
+            )
+            responses.append({
+                'student_id': student_id,
+                'status': 'created' if created else 'updated'
+            })
+        except Exception as e:
+            responses.append({'student_id': student_id, 'error': str(e)})
+
+    return Response({'results': responses}, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_attendance_view(request):
+    class_id = request.GET.get('class_id')
+    section_id = request.GET.get('section_id')
+    date = request.GET.get('date')
+
+    if not all([class_id, section_id, date]):
+        return Response({'error': 'class_id, section_id, and date are required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    attendance = Attendance.objects.filter(class_id_id=class_id, section_id_id=section_id, date=date)
+    serializer = AttendanceSerializer(attendance, many=True)
+    return Response(serializer.data)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_attendance_view(request, student_id, date):
+    try:
+        attendance = Attendance.objects.get(student_id=student_id, date=date)
+        attendance.delete()
+        return Response({'message': 'Attendance deleted successfully.'}, status=status.HTTP_204_NO_CONTENT)
+    except Attendance.DoesNotExist:
+        return Response({'error': 'Attendance record not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+
+from datetime import datetime
+# from .models import Attendance
+# from .serializers import AttendanceSerializer
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def attendance_report_view(request):
+    class_id = request.GET.get('class_id')
+    section_id = request.GET.get('section_id')
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+
+    # Validate input
+    if not all([class_id, section_id, start_date, end_date]):
+        return Response(
+            {'error': 'class_id, section_id, start_date, and end_date are required.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        start = datetime.strptime(start_date, "%Y-%m-%d").date()
+        end = datetime.strptime(end_date, "%Y-%m-%d").date()
+
+        attendance_qs = Attendance.objects.filter(
+            class_id_id=class_id,
+            section_id_id=section_id,
+            date__range=(start, end)
+        ).order_by('date')
+
+        # serializer = AttendanceSerializer(attendance_qs, many=True)
+        serializer = AttendanceReportSerializer(attendance_qs, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    except ValueError:
+        return Response({'error': 'Invalid date format. Use YYYY-MM-DD'}, status=status.HTTP_400_BAD_REQUEST)
+
+from datetime import datetime, date
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def total_attendance_summary_range_view(request):
+    user = request.user
+    school_id = user.school_id
+
+    class_id = request.GET.get('class_id')
+    section_id = request.GET.get('section_id')
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+
+    # Default to today's date if not provided
+    today = date.today()
+    try:
+        start = datetime.strptime(start_date, "%Y-%m-%d").date() if start_date else today
+        end = datetime.strptime(end_date, "%Y-%m-%d").date() if end_date else today
+    except ValueError:
+        return Response({'error': 'Invalid date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if start > end:
+        return Response({'error': 'start_date cannot be after end_date.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Step 1: Filter students
+    student_filter = {'school_id': school_id}
+    if class_id:
+        student_filter['student_class'] = class_id
+    if section_id:
+        student_filter['section'] = section_id
+
+    students = Student.objects.filter(**student_filter)
+    total_students = students.count()
+
+    # Step 2: Attendance filtering
+    attendance_qs = Attendance.objects.filter(
+        school_id=school_id,
+        student__in=students,
+        date__range=(start, end)
+    )
+
+    present = attendance_qs.filter(status='present').count()
+    absent = attendance_qs.filter(status='absent').count()
+    late = attendance_qs.filter(status='late').count()
+
+    # Attendance rate = present / (total_students * total_days) * 100
+    total_days = (end - start).days + 1
+    expected_marked = total_students * total_days
+
+    attendance_rate = round((present / expected_marked) * 100, 2) if expected_marked > 0 else 0
+
+    return Response({
+        "start_date": start.strftime("%Y-%m-%d"),
+        "end_date": end.strftime("%Y-%m-%d"),
+        "total_students": total_students,
+        "total_days": total_days,
+        "present": present,
+        "absent": absent,
+        "late": late,
+        "attendance_rate": f"{attendance_rate}%"
+    })

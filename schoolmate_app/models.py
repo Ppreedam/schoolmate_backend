@@ -258,3 +258,26 @@ class Section(models.Model):
     name = models.CharField(max_length=100)
     capacity = models.PositiveIntegerField()
     created_at = models.DateTimeField(auto_now_add=True)
+
+
+
+class Attendance(models.Model):
+    STATUS_CHOICES = (
+        ('present', 'Present'),
+        ('absent', 'Absent'),
+        ('late', 'Late'),
+    )
+
+    student = models.ForeignKey('Student', on_delete=models.CASCADE)
+    class_id = models.ForeignKey('SchoolClass', on_delete=models.CASCADE)
+    section_id = models.ForeignKey('Section', on_delete=models.CASCADE)
+    date = models.DateField()
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES)
+    school_id = models.CharField(max_length=100, default='')
+    # ✅ FIX HERE
+    marked_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('student', 'date')

@@ -3,7 +3,7 @@ from django.contrib.auth.models import User
 from rest_framework import serializers
 from .models import BrandingSettings
 from .models import BrandingSettings
-from .models import BrandingSettings, SchoolClass
+from .models import BrandingSettings, SchoolClass, Attendance
 from schoolmate_app.models import User, School, Student, FeePayment, FeeCategory, ContentBlock, BrandingSettings, SchoolGeneralSettings
 
 
@@ -123,3 +123,32 @@ class SectionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Section
         fields = '__all__'
+
+class AttendanceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Attendance
+        fields = '__all__'
+
+# class AttendanceSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = Attendance
+#         fields = ['id', 'date', 'status', 'created_at', 'student', 'class_id', 'section_id', 'marked_by']
+
+class AttendanceReportSerializer(serializers.ModelSerializer):
+    student_name = serializers.CharField(source='student.student_name', read_only=True)
+    roll_number = serializers.CharField(source='student.roll_number', read_only=True)
+    marked_by = serializers.CharField(source='marked_by.display_name', read_only=True)
+    class Meta:
+        model = Attendance
+        fields = [
+            'id',
+            'date',
+            'status',
+            'created_at',
+            'student_name',  # 👈 custom field
+            'roll_number',
+            'class_id',
+            'section_id',
+            'marked_by',
+            # 'marked_by_display_name'
+        ]
